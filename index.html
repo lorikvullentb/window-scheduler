@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>智能窗口分配器</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: bold;
+        }
+        input {
+            width: 200px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .error {
+            color: #dc3545;
+            margin-top: 5px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>智能窗口分配器</h2>
+        <div class="input-group">
+            <label for="total">窗口总数：</label>
+            <input type="number" id="total" min="1" required>
+        </div>
+        <div class="input-group">
+            <label for="maxPer">单次最多打开数：</label>
+            <input type="number" id="maxPer" min="1" required>
+        </div>
+        <div class="input-group">
+            <label for="batches">分几批打开：</label>
+            <input type="number" id="batches" min="1" required>
+        </div>
+        <button onclick="generate()">生成方案</button>
+        <div id="error" class="error"></div>
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        function validate(total, maxPer, batches) {
+            const minBatches = Math.ceil(total / maxPer);
+            if (batches < minBatches) {
+                return `至少需要 ${minBatches} 次才能打开所有窗口`;
+            }
+            if (batches > total) {
+                return `批次数不能超过总窗口数 ${total}`;
+            }
+            return null;
+        }
+
+        function smartDistribute(total, maxPer, batches) {
+            let baseSize = Math.floor(total / batches);
+            let remainder = total % batches;
+            let distribution = [];
+
+            for (let i = 0; i < batches; i++) {
+                let size = (i < remainder) ? baseSize + 1 : baseSize;
+                size = Math.min(size, maxPer);
+                distribution.push(size);
+            }
+
+            let totalAllocated = distribution.reduce((a, b) => a + b, 0);
+            while (totalAllocated < total) {
+                for (let i = 0; i < distribution.length; i++) {
+                    if (distribution[i] < maxPer) {
+                        distribution[i]++;
+                        totalAllocated++;
+                        if (totalAllocated === total) break;
+                    }
+                }
+            }
+            return distribution;
+        }
+
+        function generate() {
+            // 清空错误和结果
+            document.getElementById('error').textContent = '';
+            document.getElementById('result').innerHTML = '';
+
+            // 获取输入值
+            const total = parseInt(document.getElementById('total').value);
+            const maxPer = parseInt(document.getElementById('maxPer').value);
+            const batches = parseInt(document.getElementById('batches').value);
+
+            // 基础验证
+            if ([total, maxPer, batches].some(n => n <= 0)) {
+                showError('所有输入值必须大于0');
+                return;
+            }
+
+            // 高级验证
+            const validationError = validate(total, maxPer, batches);
+            if (validationError) {
+                showError(validationError);
+                return;
+            }
+
+            // 生成窗口列表
+            let windows = Array.from({length: total}, (_, i) => i + 1);
+            windows.sort(() => Math.random() - 0.5); // 随机打乱
+
+            // 生成分配方案
+            const distribution = smartDistribute(total, maxPer, batches);
+            let result = [];
+            let idx = 0;
+            
+            distribution.forEach(size => {
+                let batch = windows.slice(idx, idx + size);
+                if (Math.random() > 0.5) batch.reverse(); // 随机翻转
+                result.push(batch.sort((a, b) => a - b)); // 排序输出
+                idx += size;
+            });
+
+            // 显示结果
+            displayResult(result);
+        }
+
+        function showError(message) {
+            document.getElementById('error').textContent = message;
+        }
+
+        function displayResult(batches) {
+            const resultDiv = document.getElementById('result');
+            let html = '<h3>推荐打开方案：</h3>';
+            
+            batches.forEach((batch, index) => {
+                html += `<p>第${index + 1}批: [${batch.join(', ')}]</p>`;
+            });
+
+            html += '<h3>安全建议：</h3>';
+            html += '<ul>';
+            html += `<li>间隔时间建议：${batches.map(() => 
+                Math.floor(Math.random()*40 + 5)).join(' → ')}分钟</li>`;
+            html += '<li>每日首次操作时间建议浮动 ±3 小时</li>';
+            html += '<li>可配合鼠标随机移动模式使用</li>';
+            html += '</ul>';
+
+            resultDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
